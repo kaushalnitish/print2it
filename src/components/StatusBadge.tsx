@@ -1,0 +1,42 @@
+import React from 'react';
+import { TrackingStatus } from '../types';
+import { CheckCircle2, Clock, Printer, FileCheck } from 'lucide-react';
+
+interface StatusBadgeProps {
+  status: TrackingStatus;
+}
+
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
+  const configs = {
+    submitted: {
+      text: 'Order Sent',
+      icon: FileCheck,
+      classes: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
+    },
+    waiting: {
+      text: 'In Queue',
+      icon: Clock,
+      classes: 'bg-amber-50 text-amber-700 border border-amber-100',
+    },
+    printing: {
+      text: 'Printing...',
+      icon: Printer,
+      classes: 'bg-blue-50 text-blue-700 border border-blue-100 animate-pulse',
+    },
+    ready: {
+      text: 'Ready for Pickup',
+      icon: CheckCircle2,
+      classes: 'bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-[0_2px_10px_rgba(16,185,129,0.1)]',
+    },
+  };
+
+  const current = configs[status] || configs.submitted;
+  const Icon = current.icon;
+
+  return (
+    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-semibold tracking-wide ${current.classes}`}>
+      <Icon className="w-5 h-5 shrink-0" />
+      <span>{current.text}</span>
+    </div>
+  );
+};
