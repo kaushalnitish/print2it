@@ -110,7 +110,7 @@ export const enrichShop = (shop: any): Shop => {
   if (!shop) return shop;
   const enriched = {
     ...shop,
-    id: shop.id || shop.shopId,
+    id: shop.id, // Strictly preserve database UUID, never assign shop.shopId as id
     shopId: shop.shopId || shop.id,
     slug: shop.slug || shop.shopSlug,
     shopSlug: shop.shopSlug || shop.slug,
@@ -134,6 +134,7 @@ export const enrichShop = (shop: any): Shop => {
 // Initial mock pre-seeded shops
 const initialShops: Shop[] = [
   {
+    id: 'SH-8801',
     shopId: 'SH-8801',
     shopSlug: 'quickprint',
     shopName: 'QuickPrint Center',
@@ -178,6 +179,7 @@ const initialShops: Shop[] = [
     ]
   },
   {
+    id: 'SH-2903',
     shopId: 'SH-2903',
     shopSlug: 'chamba-copy-center',
     shopName: 'Chamba Copy Center',
@@ -301,6 +303,13 @@ export function SaaSProvider({ children }: { children: React.ReactNode }) {
 
   // Helper to load localStorage preseeds
   const restoreLocalFallback = () => {
+    if (isSupabaseConfigured) {
+      setShops([]);
+      setCurrentShopState(null);
+      setActiveOwner(null);
+      return;
+    }
+
     // Restore shops
     const savedShops = localStorage.getItem('printflow_shops');
     if (savedShops) {
@@ -554,6 +563,37 @@ export function SaaSProvider({ children }: { children: React.ReactNode }) {
       timestamp: 'Just now'
     };
 
+    if (isSupabaseConfigured) {
+      const matchedShop = shops.find(s => s.shopSlug.toLowerCase() === slug.toLowerCase() || s.slug?.toLowerCase() === slug.toLowerCase());
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      
+      if (!matchedShop) {
+        throw new Error('This print shop center could not be found.');
+      }
+      
+      if (!matchedShop.id || !uuidRegex.test(matchedShop.id)) {
+        throw new Error('Database operation aborted: The target print shop does not have a valid database UUID. Check configuration.');
+      }
+
+      try {
+        // Push job record to Supabase
+        const insertedJob = await supabaseDb.createPrintJob(matchedShop.id, {
+          ...job,
+          id: generatedJobId
+        });
+        
+        // Re-fetch to ensure reliable sync
+        const dbShops = await supabaseDb.fetchShops();
+        setShops(dbShops);
+        const updatedCurrent = dbShops.find(s => s.id === matchedShop.id);
+        if (updatedCurrent) setCurrentShopState(updatedCurrent);
+        return insertedJob;
+      } catch (err) {
+        console.error('Failed to create remote print job in Supabase:', err);
+        throw err;
+      }
+    }
+
     // Optmistic local update
     setShops((prevShops) => {
       return prevShops.map((shop) => {
@@ -575,28 +615,6 @@ export function SaaSProvider({ children }: { children: React.ReactNode }) {
           printJobs: [newJob, ...prev.printJobs]
         });
       });
-    }
-
-    if (isSupabaseConfigured) {
-      try {
-        const matchedShop = shops.find(s => s.shopSlug.toLowerCase() === slug.toLowerCase() || s.slug?.toLowerCase() === slug.toLowerCase());
-        if (matchedShop?.id) {
-          // Push job record to Supabase
-          const insertedJob = await supabaseDb.createPrintJob(matchedShop.id, {
-            ...job,
-            id: generatedJobId
-          });
-          
-          // Re-fetch to ensure reliable sync
-          const dbShops = await supabaseDb.fetchShops();
-          setShops(dbShops);
-          const updatedCurrent = dbShops.find(s => s.id === matchedShop.id);
-          if (updatedCurrent) setCurrentShopState(updatedCurrent);
-          return insertedJob;
-        }
-      } catch (err) {
-        console.error('Failed to create remote print job in Supabase:', err);
-      }
     }
 
     return newJob;

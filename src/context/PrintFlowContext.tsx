@@ -176,6 +176,11 @@ export function PrintFlowProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Target print shop branch not found.');
       }
 
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (isSupabaseConfigured && (!tenant.id || !uuidRegex.test(tenant.id))) {
+        throw new Error('This print shop does not have a valid database UUID and cannot receive remote print jobs. Please contact support.');
+      }
+
       const randomToken = `PF-${Math.floor(1000 + Math.random() * 9000)}`;
 
       // Automatically calculate queue position based on waiting/submitted/printing/accepted jobs in Supabase or context
