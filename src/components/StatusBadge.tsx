@@ -18,15 +18,35 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       icon: Clock,
       classes: 'bg-amber-50 text-amber-700 border border-amber-100',
     },
+    accepted: {
+      text: 'Accepted',
+      icon: FileCheck,
+      classes: 'bg-teal-50 text-teal-700 border border-teal-100',
+    },
     printing: {
       text: 'Printing...',
       icon: Printer,
       classes: 'bg-blue-50 text-blue-700 border border-blue-100 animate-pulse',
     },
+    completed: {
+      text: 'Completed',
+      icon: CheckCircle2,
+      classes: 'bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-[0_2px_10px_rgba(16,185,129,0.1)]',
+    },
     ready: {
       text: 'Ready for Pickup',
       icon: CheckCircle2,
       classes: 'bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-[0_2px_10px_rgba(16,185,129,0.1)]',
+    },
+    picked_up: {
+      text: 'Picked Up',
+      icon: CheckCircle2,
+      classes: 'bg-slate-50 text-slate-700 border border-slate-100',
+    },
+    cancelled: {
+      text: 'Cancelled',
+      icon: Clock,
+      classes: 'bg-red-50 text-red-700 border border-red-100',
     },
   };
 

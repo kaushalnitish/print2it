@@ -121,34 +121,34 @@ export const DashboardQueue: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {job.status === 'submitted' && (
+                  {(job.status === 'waiting' || job.status === 'submitted') && (
+                    <button
+                      onClick={() => handleStatusChange(job.id, 'accepted')}
+                      className="bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-all"
+                    >
+                      Accept
+                    </button>
+                  )}
+
+                  {job.status === 'accepted' && (
                     <button
                       onClick={() => handleStatusChange(job.id, 'printing')}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-all"
                     >
-                      Print
+                      Start Printing
                     </button>
                   )}
 
                   {job.status === 'printing' && (
                     <button
-                      onClick={() => handleStatusChange(job.id, 'ready')}
+                      onClick={() => handleStatusChange(job.id, 'completed')}
                       className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-all"
                     >
-                      Ready
+                      Complete
                     </button>
                   )}
 
-                  {job.status === 'ready' && (
-                    <button
-                      onClick={() => handleStatusChange(job.id, 'picked_up')}
-                      className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-all"
-                    >
-                      Pickup
-                    </button>
-                  )}
-
-                  {job.status !== 'picked_up' && job.status !== 'cancelled' && (
+                  {job.status !== 'completed' && job.status !== 'ready' && job.status !== 'picked_up' && job.status !== 'cancelled' && (
                     <button
                       onClick={() => handleStatusChange(job.id, 'cancelled')}
                       className="border border-red-100 hover:bg-red-50 text-red-600 font-extrabold text-xs px-3 py-2 rounded-xl transition-all"

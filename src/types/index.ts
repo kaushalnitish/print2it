@@ -15,11 +15,12 @@ export interface PrintFile {
   type: string;
   pages: number;
   previewUrl?: string;
+  rawFile?: File;
 }
 
 export type UploadStep = 'preparing' | 'uploading' | 'processing' | 'finalizing';
 
-export type TrackingStatus = 'submitted' | 'waiting' | 'printing' | 'ready' | 'picked_up' | 'cancelled';
+export type TrackingStatus = 'submitted' | 'waiting' | 'accepted' | 'printing' | 'completed' | 'ready' | 'picked_up' | 'cancelled';
 
 export interface OrderState {
   token: string;

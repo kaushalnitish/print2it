@@ -7,7 +7,7 @@
 export type SubscriptionPlan = 'Starter' | 'Professional' | 'Enterprise' | 'Trial Active';
 export type PrinterStatus = 'online' | 'offline' | 'Not Connected';
 export type AgentStatus = 'connected' | 'disconnected' | 'Not Installed';
-export type JobStatus = 'submitted' | 'waiting' | 'printing' | 'ready' | 'picked_up' | 'cancelled';
+export type JobStatus = 'submitted' | 'waiting' | 'accepted' | 'printing' | 'completed' | 'ready' | 'picked_up' | 'cancelled';
 
 export interface PrintJob {
   id: string;
@@ -21,6 +21,7 @@ export interface PrintJob {
   sideMode: 'single' | 'double';
   status: JobStatus;
   timestamp: string;
+  fileUrl?: string;
   
   // For backwards/nested compatibility
   file?: {

@@ -21,14 +21,13 @@ export const DashboardOverview: React.FC = () => {
     );
   }
 
-  // Calculate statistics based on real simulated jobs
+  // Calculate statistics based on real print jobs
   const jobs = currentShop.jobs || [];
-  const queuedJobs = jobs.filter(j => j.status === 'submitted' || j.status === 'waiting');
-  const activeJobs = jobs.filter(j => j.status === 'printing');
-  const completedJobs = jobs.filter(j => j.status === 'ready' || j.status === 'picked_up');
+  const waitingJobs = jobs.filter(j => j.status === 'waiting' || j.status === 'accepted' || j.status === 'submitted');
+  const printingJobs = jobs.filter(j => j.status === 'printing');
+  const completedToday = jobs.filter(j => j.status === 'completed' || j.status === 'ready' || j.status === 'picked_up');
   
   const totalPages = jobs.reduce((sum, j) => sum + (j.file?.pages || 0) * (j.settings?.copies || 1), 0);
-  const queueLength = queuedJobs.length + activeJobs.length;
 
   const handleStatusChange = (jobId: string, nextStatus: TrackingStatus) => {
     updateJobStatus(currentShop.id, jobId, nextStatus);
@@ -83,8 +82,18 @@ export const DashboardOverview: React.FC = () => {
             <Clock className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Queue</p>
-            <p className="text-2xl font-black text-slate-800 tracking-tight">{queueLength} jobs</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Waiting Jobs</p>
+            <p className="text-2xl font-black text-slate-800 tracking-tight">{waitingJobs.length} jobs</p>
+          </div>
+        </Card>
+
+        <Card className="p-5 flex items-center gap-4 border border-slate-100" id="stat-card-printing">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+            <Printer className="w-6 h-6 animate-pulse" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Printing Jobs</p>
+            <p className="text-2xl font-black text-slate-800 tracking-tight">{printingJobs.length} jobs</p>
           </div>
         </Card>
 
@@ -93,18 +102,8 @@ export const DashboardOverview: React.FC = () => {
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jobs Completed</p>
-            <p className="text-2xl font-black text-slate-800 tracking-tight">{completedJobs.length} today</p>
-          </div>
-        </Card>
-
-        <Card className="p-5 flex items-center gap-4 border border-slate-100" id="stat-card-pages">
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-            <Printer className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sheets Printed</p>
-            <p className="text-2xl font-black text-slate-800 tracking-tight">{totalPages} pgs</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Completed Today</p>
+            <p className="text-2xl font-black text-slate-800 tracking-tight">{completedToday.length} today</p>
           </div>
         </Card>
 
@@ -194,7 +193,16 @@ export const DashboardOverview: React.FC = () => {
 
                   {/* Actions based on status */}
                   <div className="flex items-center gap-2">
-                    {job.status === 'submitted' && (
+                    {(job.status === 'waiting' || job.status === 'submitted') && (
+                      <button
+                        onClick={() => handleStatusChange(job.id, 'accepted')}
+                        className="bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition-all"
+                      >
+                        Accept
+                      </button>
+                    )}
+
+                    {job.status === 'accepted' && (
                       <button
                         onClick={() => handleStatusChange(job.id, 'printing')}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition-all"
@@ -205,23 +213,14 @@ export const DashboardOverview: React.FC = () => {
 
                     {job.status === 'printing' && (
                       <button
-                        onClick={() => handleStatusChange(job.id, 'ready')}
+                        onClick={() => handleStatusChange(job.id, 'completed')}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition-all"
                       >
-                        Mark as Ready
+                        Complete
                       </button>
                     )}
 
-                    {job.status === 'ready' && (
-                      <button
-                        onClick={() => handleStatusChange(job.id, 'picked_up')}
-                        className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition-all"
-                      >
-                        Hand Over (Pickup)
-                      </button>
-                    )}
-
-                    {job.status !== 'picked_up' && job.status !== 'cancelled' && (
+                    {job.status !== 'completed' && job.status !== 'ready' && job.status !== 'picked_up' && job.status !== 'cancelled' && (
                       <button
                         onClick={() => handleStatusChange(job.id, 'cancelled')}
                         className="border border-red-100 hover:bg-red-50 text-red-600 font-extrabold text-xs px-3 py-2 rounded-xl transition-all"

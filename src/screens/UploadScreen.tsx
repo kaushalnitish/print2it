@@ -73,6 +73,7 @@ export const UploadScreen: React.FC = () => {
       type: rawFile.type || (fileExtension === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/octet-stream'),
       pages: estimatedPages,
       previewUrl: rawFile.type.startsWith('image/') ? URL.createObjectURL(rawFile) : undefined,
+      rawFile,
     };
 
     setFile(mockFile);

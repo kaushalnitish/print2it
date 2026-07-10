@@ -1,46 +1,25 @@
 -- =====================================================================
--- PRINTFLOW SUPABASE DATABASE SCHEMA & SECURITY POLICIES
+-- PRINTFLOW SUPABASE DATABASE SCHEMA & SECURITY POLICIES (MVP)
 -- =====================================================================
--- This file provides the complete database foundation for PrintFlow.
+-- This file provides the complete production database foundation for PrintFlow.
 -- Copy-paste this code into the SQL Editor in your Supabase Dashboard.
+-- This version is simplified for an MVP without Supabase Auth or Profiles.
 -- =====================================================================
 
 -- Enable UUID extension if not enabled
 create extension if not exists "uuid-ossp";
 
 -- ---------------------------------------------------------------------
--- 1. PROFILES TABLE (Shop Owners)
--- ---------------------------------------------------------------------
--- Links to Supabase Auth.users table.
-create table public.profiles (
-    id uuid references auth.users on delete cascade primary key,
-    name text not null,
-    email text not null,
-    phone text,
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- Enable Row Level Security (RLS) on profiles
-alter table public.profiles enable row level security;
-
--- Create policies for profiles
-create policy "Owners can view their own profile"
-    on public.profiles for select
-    using (auth.uid() = id);
-
-create policy "Owners can update their own profile"
-    on public.profiles for update
-    using (auth.uid() = id);
-
--- ---------------------------------------------------------------------
--- 2. SHOPS TABLE
+-- 1. SHOPS TABLE
 -- ---------------------------------------------------------------------
 create table public.shops (
     id uuid default gen_random_uuid() primary key,
     shop_id text unique not null, -- External ID representation (e.g., 'SH-1234')
     shop_slug text unique not null,
     shop_name text not null,
-    owner_id uuid references public.profiles(id) on delete cascade not null,
+    owner_id text default 'mvp-user-id' not null, -- Owner identifier (extensible for flexible Google Auth/UUID integration later)
+    owner_name text default 'Valued Owner' not null, -- Owner display name stored directly on the shop row
+    owner_email text default 'demo@printflow.cloud' not null, -- Owner email stored directly
     phone text not null,
     address text not null,
     subscription text default 'Starter' not null, -- 'Starter', 'Professional', 'Enterprise', 'Trial Active'
@@ -50,7 +29,7 @@ create table public.shops (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Enable RLS on shops
+-- Enable Row Level Security (RLS) on shops
 alter table public.shops enable row level security;
 
 -- Create policies for shops
@@ -58,13 +37,20 @@ create policy "Anyone can view shop profiles"
     on public.shops for select
     using (true); -- Required for walk-in customers visiting the portal
 
-create policy "Owners can manage their own shops"
-    on public.shops for all
-    using (auth.uid() = owner_id)
-    with check (auth.uid() = owner_id);
+create policy "Anyone can insert shops in MVP"
+    on public.shops for insert
+    with check (true); -- Required for registration without auth in MVP
+
+create policy "Anyone can update shops in MVP"
+    on public.shops for update
+    using (true);
+
+create policy "Anyone can delete shops in MVP"
+    on public.shops for delete
+    using (true);
 
 -- ---------------------------------------------------------------------
--- 3. PRINT JOBS TABLE
+-- 2. PRINT JOBS TABLE
 -- ---------------------------------------------------------------------
 create table public.print_jobs (
     id uuid default gen_random_uuid() primary key,
@@ -78,6 +64,7 @@ create table public.print_jobs (
     paper_size text not null, -- 'a4', 'a3'
     side_mode text not null, -- 'single', 'double'
     status text default 'submitted' not null, -- 'submitted', 'waiting', 'printing', 'ready', 'picked_up', 'cancelled'
+    file_url text, -- Public URL of the uploaded print file in Supabase Storage
     shop_id uuid references public.shops(id) on delete cascade not null,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -90,49 +77,72 @@ create policy "Anyone can insert new print jobs"
     on public.print_jobs for insert
     with check (true); -- Required so walk-in customer portal can submit files
 
-create policy "Customers can view their specific jobs by token"
+create policy "Anyone can view print jobs"
     on public.print_jobs for select
-    using (true); -- In practice, filter by token on the client, or restrict if using customer sessions
+    using (true);
 
-create policy "Shop owners can manage jobs for their shops"
-    on public.print_jobs for all
-    using (
-        exists (
-            select 1 from public.shops
-            where shops.id = print_jobs.shop_id
-            and shops.owner_id = auth.uid()
-        )
-    )
-    with check (
-        exists (
-            select 1 from public.shops
-            where shops.id = print_jobs.shop_id
-            and shops.owner_id = auth.uid()
-        )
-    );
+create policy "Anyone can update print jobs"
+    on public.print_jobs for update
+    using (true);
+
+create policy "Anyone can delete print jobs"
+    on public.print_jobs for delete
+    using (true);
 
 -- ---------------------------------------------------------------------
--- 4. DATABASE TRIGGERS & FUNCTIONS
+-- 3. PRINT AGENTS TABLE
 -- ---------------------------------------------------------------------
--- Automatically create a profile row in public.profiles when a user signs up.
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, name, email, phone)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'name', 'Valued Owner'),
-    new.email,
-    new.raw_user_meta_data->>'phone'
-  );
-  return new;
-end;
-$$ language plpgsql security definer;
+-- Tracks physical print client machines running locally in shop locations.
+create table public.print_agents (
+    id uuid default gen_random_uuid() primary key,
+    shop_id uuid references public.shops(id) on delete cascade unique not null,
+    agent_version text default '1.0.0' not null,
+    os_platform text not null,
+    status text default 'Not Installed' not null, -- 'connected', 'disconnected', 'Not Installed'
+    last_connected_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    printer_name text,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
 
--- Trigger to hook the function to auth.users signups
-create or replace trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
+-- Enable RLS on print_agents
+alter table public.print_agents enable row level security;
+
+-- Create policies for print_agents
+create policy "Anyone can view print agents"
+    on public.print_agents for select
+    using (true);
+
+create policy "Anyone can update/insert print agents"
+    on public.print_agents for all
+    using (true)
+    with check (true);
+
+-- ---------------------------------------------------------------------
+-- 4. SUBSCRIPTIONS TABLE
+-- ---------------------------------------------------------------------
+-- Tracks plan tiers and daily quotas for each shop.
+create table public.subscriptions (
+    id uuid default gen_random_uuid() primary key,
+    shop_id uuid references public.shops(id) on delete cascade unique not null,
+    plan text default 'Starter' not null, -- 'Starter', 'Professional', 'Enterprise', 'Trial Active'
+    status text default 'active' not null, -- 'active', 'past_due', 'canceled', 'trialing'
+    current_period_end timestamp with time zone not null,
+    max_daily_jobs integer default 100 not null,
+    current_daily_jobs integer default 0 not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on subscriptions
+alter table public.subscriptions enable row level security;
+
+-- Create policies for subscriptions
+create policy "Anyone can view subscriptions"
+    on public.subscriptions for select
+    using (true);
+
+create policy "Anyone can update subscriptions"
+    on public.subscriptions for update
+    using (true);
 
 -- ---------------------------------------------------------------------
 -- 5. USEFUL INDEXES FOR QUERY OPTIMIZATION
@@ -142,3 +152,5 @@ create index idx_shops_owner on public.shops(owner_id);
 create index idx_print_jobs_shop on public.print_jobs(shop_id);
 create index idx_print_jobs_token on public.print_jobs(token);
 create index idx_print_jobs_status on public.print_jobs(status);
+create index idx_print_agents_shop on public.print_agents(shop_id);
+create index idx_subscriptions_shop on public.subscriptions(shop_id);

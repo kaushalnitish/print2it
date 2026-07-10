@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { CloudUpload, ShieldAlert, Sparkles, Printer } from 'lucide-react';
+import { CloudUpload, ShieldAlert, Sparkles, Printer, RefreshCw } from 'lucide-react';
 import { usePrintFlow } from '../context/PrintFlowContext';
 import { Card } from '../components/Card';
 import { ProgressBar } from '../components/ProgressBar';
@@ -9,7 +9,7 @@ import { motion, useMotionValue } from 'motion/react';
 export const UploadingScreen: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { file, uploadProgress, uploadStep, isUploading } = usePrintFlow();
+  const { file, uploadProgress, uploadStep, isUploading, uploadError, startUpload, resetFlow } = usePrintFlow();
 
   // Redirect if no file is present
   useEffect(() => {
@@ -22,14 +22,70 @@ export const UploadingScreen: React.FC = () => {
 
   // If upload completes successfully, context triggers redirect. But just in case, double guard:
   useEffect(() => {
-    if (!isUploading && uploadProgress >= 100) {
+    if (!isUploading && uploadProgress >= 100 && !uploadError) {
       const match = location.pathname.match(/(\/s\/[^/]+)/);
       const prefix = match ? match[1] : '';
       navigate(`${prefix}/success`);
     }
-  }, [isUploading, uploadProgress, navigate, location.pathname]);
+  }, [isUploading, uploadProgress, uploadError, navigate, location.pathname]);
 
   if (!file) return null;
+
+  if (uploadError) {
+    return (
+      <div className="flex flex-col justify-center items-center flex-1 px-8 py-12 bg-white max-w-lg mx-auto w-full min-h-[calc(100vh-80px)] animate-fade-in">
+        <div className="w-full space-y-8 text-center">
+          <div className="flex justify-center">
+            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center border border-red-100 text-red-500 animate-bounce">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Upload Failed</h3>
+            <p className="text-slate-500 text-sm max-w-xs mx-auto">
+              There was an issue sending your file to the print queue.
+            </p>
+          </div>
+
+          <Card className="p-5 border-red-100 bg-red-50/30 text-left space-y-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-red-600 block">Error details</span>
+            <p className="text-red-950 text-xs font-medium leading-relaxed font-mono whitespace-pre-wrap break-all bg-white/80 p-3 rounded-xl border border-red-50/50">
+              {uploadError}
+            </p>
+          </Card>
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => {
+                startUpload(() => {
+                  const match = location.pathname.match(/(\/s\/[^/]+)/);
+                  const prefix = match ? match[1] : '';
+                  navigate(`${prefix}/success`);
+                });
+              }}
+              className="w-full py-3.5 px-6 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4 animate-spin-hover" />
+              <span>Retry Upload</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const match = location.pathname.match(/(\/s\/[^/]+)/);
+                const prefix = match ? match[1] : '';
+                resetFlow();
+                navigate(`${prefix}/upload`);
+              }}
+              className="w-full py-3.5 px-6 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-extrabold text-sm transition-all cursor-pointer"
+            >
+              Cancel and Start Over
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Status mapping helper
   const getStepDetails = () => {

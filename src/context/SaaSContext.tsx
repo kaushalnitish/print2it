@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { supabaseAuth, supabaseDb, mapDbShopToShop } from '../lib/supabaseService';
 import { PrintJob, JobStatus } from '../types';
 
@@ -37,7 +37,7 @@ interface SaaSContextType {
   logout: () => void | Promise<void>;
   getShopBySlug: (slug: string) => Shop | undefined;
   addJobToShop: (slug: string, job: Omit<PrintJob, 'id' | 'timestamp'>) => PrintJob | Promise<PrintJob>;
-  updateJobStatus: (shopId: string, jobId: string, status: 'submitted' | 'waiting' | 'printing' | 'ready' | 'picked_up' | 'cancelled') => void | Promise<void>;
+  updateJobStatus: (shopId: string, jobId: string, status: JobStatus) => void | Promise<void>;
   updateShopSettings: (shopId: string, updates: Partial<Shop>) => void | Promise<void>;
   clearShopJobs: (shopId: string) => void | Promise<void>;
   addBranch: (branchName: string, address: string, phone: string) => void | Promise<void>;
@@ -83,7 +83,7 @@ export const getDemoShop = (): Shop => {
         colorMode: 'bw',
         paperSize: 'a4',
         sideMode: 'double',
-        status: 'submitted',
+        status: 'waiting',
         timestamp: '5 mins ago'
       },
       {
@@ -252,6 +252,52 @@ export function SaaSProvider({ children }: { children: React.ReactNode }) {
 
     initialize();
   }, []);
+
+  // ---------------------------------------------------------------------
+  // 1b. SUPABASE REALTIME SUBSCRIPTION FOR PRINT JOBS
+  // ---------------------------------------------------------------------
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    console.log('Setting up Supabase Realtime subscription for print_jobs changes...');
+
+    const channel = supabase
+      .channel('public-print-jobs-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'print_jobs',
+        },
+        async (payload) => {
+          console.log('Realtime print_jobs update received:', payload);
+          try {
+            const dbShops = await supabaseDb.fetchShops();
+            setShops(dbShops);
+            
+            // Re-sync current shop in state using a functional state update to avoid stale closures
+            setCurrentShopState((prevCurrent) => {
+              if (prevCurrent) {
+                const matched = dbShops.find(s => s.id === prevCurrent.id || s.shopId === prevCurrent.shopId);
+                return matched ? matched : prevCurrent;
+              }
+              return null;
+            });
+          } catch (err) {
+            console.error('Error auto-syncing database changes via Realtime:', err);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log(`Supabase Realtime subscription status: ${status}`);
+      });
+
+    return () => {
+      console.log('Teardown Supabase Realtime subscription...');
+      supabase.removeChannel(channel);
+    };
+  }, [isSupabaseConfigured]);
 
   // Helper to load localStorage preseeds
   const restoreLocalFallback = () => {
@@ -559,7 +605,7 @@ export function SaaSProvider({ children }: { children: React.ReactNode }) {
   const updateJobStatus = async (
     shopId: string, 
     jobId: string, 
-    status: 'submitted' | 'waiting' | 'printing' | 'ready' | 'picked_up' | 'cancelled'
+    status: JobStatus
   ) => {
     // Optimistic local state update
     setShops((prevShops) => {

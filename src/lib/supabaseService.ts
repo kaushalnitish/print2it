@@ -27,18 +27,39 @@ function formatTimestamp(isoString: string): string {
 // TYPE MAPPERS (Database Row <=> Frontend UI state)
 // ---------------------------------------------------------------------
 export function mapDbJobToJob(dbJob: any): PrintJob {
+  const fileName = dbJob.file_name || dbJob.fileName || '';
+  const fileSize = dbJob.file_size || dbJob.fileSize || '';
+  const pages = dbJob.pages || 0;
+  const copies = dbJob.copies || 1;
+  const colorMode = dbJob.color_mode || dbJob.colorMode || 'bw';
+  const paperSize = dbJob.paper_size || dbJob.paperSize || 'a4';
+  const sideMode = dbJob.side_mode || dbJob.sideMode || 'single';
+
   return {
-    id: dbJob.job_id,
+    id: dbJob.job_id || dbJob.id,
     token: dbJob.token,
-    fileName: dbJob.file_name,
-    fileSize: dbJob.file_size,
-    pages: dbJob.pages,
-    copies: dbJob.copies,
-    colorMode: dbJob.color_mode as 'bw' | 'color',
-    paperSize: dbJob.paper_size as 'a4' | 'a3',
-    sideMode: dbJob.side_mode as 'single' | 'double',
+    fileName,
+    fileSize,
+    pages,
+    copies,
+    colorMode: colorMode as 'bw' | 'color',
+    paperSize: paperSize as 'a4' | 'a3',
+    sideMode: sideMode as 'single' | 'double',
     status: dbJob.status as any,
-    timestamp: dbJob.created_at ? formatTimestamp(dbJob.created_at) : 'Just now'
+    fileUrl: dbJob.file_url || dbJob.fileUrl,
+    timestamp: dbJob.created_at || dbJob.createdAt ? formatTimestamp(dbJob.created_at || dbJob.createdAt) : 'Just now',
+    createdAt: dbJob.created_at || dbJob.createdAt || new Date().toISOString(),
+    file: {
+      name: fileName,
+      size: fileSize,
+      pages: pages
+    },
+    settings: {
+      copies: copies,
+      colorMode: colorMode as any,
+      paperSize: paperSize as any,
+      sideMode: sideMode as any
+    }
   };
 }
 
@@ -53,8 +74,8 @@ export function mapDbShopToShop(dbShop: any, dbJobs: any[] = []): Shop {
     shopSlug: dbShop.shop_slug,
     name: dbShop.shop_name,
     shopName: dbShop.shop_name,
-    ownerName: dbShop.profiles?.name || 'Valued Owner',
-    email: dbShop.profiles?.email || '',
+    ownerName: dbShop.owner_name || 'Valued Owner',
+    email: dbShop.owner_email || 'demo@printflow.cloud',
     phone: dbShop.phone,
     address: dbShop.address,
     subscription: dbShop.subscription as any,
@@ -76,63 +97,45 @@ export function mapDbShopToShop(dbShop: any, dbJobs: any[] = []): Shop {
 // ---------------------------------------------------------------------
 export const supabaseAuth = {
   async signUp(email: string, password: string, name: string, phone: string) {
-    if (!isSupabaseConfigured || !supabase) {
-      throw new Error('Supabase is not configured yet. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY first.');
-    }
-    
-    // Sign up using Supabase authentication, passing custom metadata for profile creation
-    const { data, error } = await supabase.auth.signUp({
+    // Just mock/local authentication for MVP! No Supabase Auth needed.
+    const mockUser = {
+      uid: 'mvp-user-id',
       email,
-      password,
-      options: {
-        data: {
-          name,
-          phone
-        }
-      }
-    });
-    
-    if (error) throw error;
-    return data;
+      name,
+      phone
+    };
+    localStorage.setItem('printflow_user', JSON.stringify(mockUser));
+    return { user: mockUser };
   },
 
   async signIn(email: string, password: string) {
-    if (!isSupabaseConfigured || !supabase) {
-      throw new Error('Supabase is not configured yet.');
-    }
-    
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    
-    if (error) throw error;
-    return data;
+    const mockUser = {
+      uid: 'mvp-user-id',
+      email: email || 'demo@printflow.cloud',
+      name: 'Valued Owner',
+      phone: ''
+    };
+    localStorage.setItem('printflow_user', JSON.stringify(mockUser));
+    return { user: mockUser };
   },
 
   async signOut() {
-    if (!isSupabaseConfigured || !supabase) return;
-    await supabase.auth.signOut();
+    localStorage.removeItem('printflow_user');
   },
 
   async getCurrentUser() {
-    if (!isSupabaseConfigured || !supabase) return null;
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return null;
+    const data = localStorage.getItem('printflow_user');
+    if (data) return JSON.parse(data);
     
-    // Fetch user public profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-      
-    return {
-      uid: user.id,
-      email: user.email || '',
-      name: profile?.name || 'Valued Owner',
-      phone: profile?.phone || ''
+    // Always return a default logged-in user so that the application works seamlessly without any registration/authentication
+    const demoUser = {
+      uid: 'mvp-user-id',
+      email: 'demo@printflow.cloud',
+      name: 'Valued Owner',
+      phone: '123-456-7890'
     };
+    localStorage.setItem('printflow_user', JSON.stringify(demoUser));
+    return demoUser;
   }
 };
 
@@ -140,21 +143,15 @@ export const supabaseAuth = {
 // DATABASE CRUD SERVICES (Shops & Print Jobs)
 // ---------------------------------------------------------------------
 export const supabaseDb = {
-  // Fetch all shops with their associated profiles and print jobs
+  // Fetch all shops with print jobs
   async fetchShops(): Promise<Shop[]> {
     if (!isSupabaseConfigured || !supabase) return [];
     
     try {
-      // 1. Fetch shops with profile details
+      // 1. Fetch shops directly
       const { data: shopsData, error: shopsError } = await supabase
         .from('shops')
-        .select(`
-          *,
-          profiles (
-            name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
         
       if (shopsError) throw shopsError;
@@ -192,6 +189,8 @@ export const supabaseDb = {
       shop_slug: shop.shopSlug,
       shop_name: shop.shopName,
       owner_id: ownerId,
+      owner_name: shop.ownerName || 'Valued Owner',
+      owner_email: shop.email || 'demo@printflow.cloud',
       phone: shop.phone,
       address: shop.address,
       subscription: shop.subscription,
@@ -203,13 +202,7 @@ export const supabaseDb = {
     const { data: insertedShop, error } = await supabase
       .from('shops')
       .insert(dbPayload)
-      .select(`
-        *,
-        profiles (
-          name,
-          email
-        )
-      `)
+      .select('*')
       .single();
       
     if (error) throw error;
@@ -270,6 +263,7 @@ export const supabaseDb = {
       paper_size: job.paperSize,
       side_mode: job.sideMode,
       status: job.status || 'submitted',
+      file_url: job.fileUrl || null,
       shop_id: shopUuid
     };
     

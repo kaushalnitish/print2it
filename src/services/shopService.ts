@@ -16,13 +16,7 @@ export const shopService = {
       // Fetch shops from database
       const { data: shopsData, error: shopsError } = await supabase
         .from('shops')
-        .select(`
-          *,
-          profiles (
-            name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (shopsError) throw shopsError;
@@ -72,6 +66,8 @@ export const shopService = {
       shop_slug: shop.shopSlug,
       shop_name: shop.shopName,
       owner_id: ownerId,
+      owner_name: shop.ownerName || 'Valued Owner',
+      owner_email: shop.email || 'demo@printflow.cloud',
       phone: shop.phone,
       address: shop.address,
       subscription: shop.subscription,
@@ -83,13 +79,7 @@ export const shopService = {
     const { data: insertedShop, error } = await supabase
       .from('shops')
       .insert(dbPayload)
-      .select(`
-        *,
-        profiles (
-          name,
-          email
-        )
-      `)
+      .select('*')
       .single();
 
     if (error) throw error;
