@@ -35,8 +35,8 @@ export const DashboardShops: React.FC = () => {
 
     addBranch(
       newBranchName,
-      newBranchAddress || '102 Express Way, Sector 17, Chandigarh',
-      newBranchPhone || currentOwner.phone
+      newBranchAddress || 'Main Counter Desk',
+      newBranchPhone || currentOwner.phone || ''
     );
 
     setNewBranchName('');
@@ -232,7 +232,7 @@ export const DashboardShops: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <span className={`w-2.5 h-2.5 rounded-full ${shop.subscriptionStatus === 'active' ? 'bg-emerald-500' : 'bg-red-500'}`} />
                   <span className="text-xs font-bold text-slate-500 capitalize">
-                    Subscription: {shop.subscriptionStatus === 'active' ? 'Starter Plan Active (Trial)' : 'Suspended'}
+                    Subscription: {shop.subscriptionStatus === 'active' ? `${shop.subscription || 'Starter'} Plan Active` : 'Suspended'}
                   </span>
                 </div>
               </div>

@@ -3,6 +3,8 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SaaSProvider } from './context/SaaSContext';
 import { PrintFlowProvider } from './context/PrintFlowContext';
 import { CustomerLayout } from './layouts/CustomerLayout';
+import { isSupabaseConfigured } from './lib/supabase';
+import { AlertCircle } from 'lucide-react';
 
 // Walk-in Customer Portal Screens
 import { WelcomeScreen } from './screens/WelcomeScreen';
@@ -26,8 +28,27 @@ import { DashboardQueue } from './screens/saas/DashboardQueue';
 import { DashboardShops } from './screens/saas/DashboardShops';
 import { DashboardSettings } from './screens/saas/DashboardSettings';
 import { DashboardSubscription } from './screens/saas/DashboardSubscription';
+import { DashboardAgent } from './screens/saas/DashboardAgent';
 
 export default function App() {
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 font-sans p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-100 text-center space-y-6 shadow-[0_10px_30px_rgba(0,0,0,0.02)]">
+          <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-xl font-black text-slate-950 tracking-tight">Cloud connection unavailable.</h1>
+            <p className="text-slate-550 font-medium text-xs leading-relaxed">
+              We are unable to establish a secure database channel. Please verify your system's deployment environment secrets.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SaaSProvider>
       <PrintFlowProvider>
@@ -48,6 +69,7 @@ export default function App() {
               <Route path="shops" element={<DashboardShops />} />
               <Route path="settings" element={<DashboardSettings />} />
               <Route path="subscription" element={<DashboardSubscription />} />
+              <Route path="agent" element={<DashboardAgent />} />
             </Route>
 
             {/* 3. Customer Portal Routes - isolated by unique shop slugs */}

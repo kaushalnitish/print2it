@@ -48,7 +48,7 @@ export function PrintFlowProvider({ children }: { children: React.ReactNode }) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStep, setUploadStep] = useState<UploadStep>('preparing');
   const [isUploading, setIsUploading] = useState(false);
-  const [simulateTracking, setSimulateTracking] = useState(true);
+  const [simulateTracking, setSimulateTracking] = useState(!isSupabaseConfigured);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { getShopBySlug, addJobToShop, updateJobStatus, shops } = useSaaS();
@@ -330,35 +330,7 @@ export function PrintFlowProvider({ children }: { children: React.ReactNode }) {
     }
   }, [shops, order?.token]);
 
-  // 2. Live order status simulation for Screen 7 (Tracking) - Offline fallback / demo mode
-  useEffect(() => {
-    if (!order || order.status === 'ready' || !simulateTracking) return;
-
-    const timer = setTimeout(() => {
-      const match = window.location.hash.match(/\/s\/([^/]+)/);
-      if (!match || !match[1]) return;
-      const slug = match[1];
-
-      const tenant = getShopBySlug(slug);
-      if (!tenant) return;
-
-      const activeJob = tenant.printJobs.find((j) => j.token === order.token);
-      if (!activeJob) return;
-
-      let nextStatus: JobStatus = activeJob.status;
-      if (activeJob.status === 'waiting') {
-        nextStatus = 'accepted';
-      } else if (activeJob.status === 'accepted') {
-        nextStatus = 'printing';
-      } else if (activeJob.status === 'printing') {
-        nextStatus = 'ready'; // ready triggers customer 'ready'
-      }
-
-      updateJobStatus(tenant.shopId, activeJob.id, nextStatus as any);
-    }, 8000); // Progresses status every 8 seconds for nice user feedback
-
-    return () => clearTimeout(timer);
-  }, [order?.token, order?.status, simulateTracking, getShopBySlug, updateJobStatus]);
+  // Live order status simulation removed for production - status updates now strictly follow manual database changes.
 
   return (
     <PrintFlowContext.Provider

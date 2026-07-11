@@ -109,7 +109,7 @@ export const DashboardQueue: React.FC = () => {
                     <span>•</span>
                     <span>{job.file?.pages} {job.file?.pages === 1 ? 'page' : 'pages'}</span>
                     <span>•</span>
-                    <span className="text-slate-400">{new Date(job.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="text-slate-400">{job.timestamp || 'Just now'}</span>
                   </div>
                 </div>
               </div>

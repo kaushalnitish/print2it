@@ -197,7 +197,7 @@ export const TrackingScreen: React.FC = () => {
       case 'submitted':
         return {
           title: 'Document Transmitted',
-          desc: 'We have received your print job. It is safely registered in the database, and the operator is reviewing the specs.',
+          desc: 'We have received your print job. It is safely queued at the counter, and the operator is reviewing the specs.',
           bgColor: 'bg-indigo-50 border-indigo-150',
           textColor: 'text-indigo-950',
         };

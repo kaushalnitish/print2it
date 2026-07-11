@@ -97,7 +97,29 @@ export function mapDbShopToShop(dbShop: any, dbJobs: any[] = []): Shop {
 // ---------------------------------------------------------------------
 export const supabaseAuth = {
   async signUp(email: string, password: string, name: string, phone: string) {
-    // Just mock/local authentication for MVP! No Supabase Auth needed.
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            phone
+          }
+        }
+      });
+      if (error) throw error;
+      const user = data.user;
+      const res = {
+        uid: user?.id || '',
+        email: user?.email || email,
+        name: name,
+        phone: phone
+      };
+      localStorage.setItem('printflow_user', JSON.stringify(res));
+      return { user: res };
+    }
+
     const mockUser = {
       uid: 'mvp-user-id',
       email,
@@ -109,6 +131,23 @@ export const supabaseAuth = {
   },
 
   async signIn(email: string, password: string) {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (error) throw error;
+      const user = data.user;
+      const res = {
+        uid: user?.id || '',
+        email: user?.email || email,
+        name: user?.user_metadata?.name || 'Valued Owner',
+        phone: user?.user_metadata?.phone || ''
+      };
+      localStorage.setItem('printflow_user', JSON.stringify(res));
+      return { user: res };
+    }
+
     const mockUser = {
       uid: 'mvp-user-id',
       email: email || 'demo@printflow.cloud',
@@ -120,14 +159,34 @@ export const supabaseAuth = {
   },
 
   async signOut() {
+    if (isSupabaseConfigured && supabase) {
+      await supabase.auth.signOut().catch(err => console.error(err));
+    }
     localStorage.removeItem('printflow_user');
   },
 
   async getCurrentUser() {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          return {
+            uid: user.id,
+            email: user.email || '',
+            name: user.user_metadata?.name || 'Valued Owner',
+            phone: user.user_metadata?.phone || ''
+          };
+        }
+      } catch (err) {
+        console.error('Error fetching Supabase user, clearing session:', err);
+      }
+      localStorage.removeItem('printflow_user');
+      return null;
+    }
+
     const data = localStorage.getItem('printflow_user');
     if (data) return JSON.parse(data);
     
-    // Always return a default logged-in user so that the application works seamlessly without any registration/authentication
     const demoUser = {
       uid: 'mvp-user-id',
       email: 'demo@printflow.cloud',

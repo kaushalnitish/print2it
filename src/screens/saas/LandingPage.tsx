@@ -346,7 +346,7 @@ export const LandingPage: React.FC = () => {
                     </li>
                     <li className="flex items-center gap-2.5">
                       <CheckCircle className="w-4 h-4 text-slate-600 shrink-0" />
-                      <span>Custom API & Print Node Integration</span>
+                      <span>Custom Hardware & Print Node Integration</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <CheckCircle className="w-4 h-4 text-slate-600 shrink-0" />
@@ -446,8 +446,8 @@ export const LandingPage: React.FC = () => {
             <h5 className="text-white text-sm font-bold uppercase tracking-wider">Contact</h5>
             <ul className="space-y-2 text-xs font-semibold">
               <li><Link to="/contact" className="hover:text-white transition-colors">Support Desk</Link></li>
-              <li className="text-slate-500">Local Office: Palo Alto, CA</li>
-              <li className="text-slate-500">India Desk: Chandigarh</li>
+              <li className="text-slate-500">HQ: Palo Alto, CA</li>
+              <li className="text-slate-500">Support: support@printflow.cloud</li>
             </ul>
           </div>
         </div>

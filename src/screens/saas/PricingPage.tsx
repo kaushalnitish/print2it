@@ -6,8 +6,8 @@ export const PricingPage: React.FC = () => {
   const navigate = useNavigate();
 
   const faqs = [
-    { q: 'Is there really no payment required for the trial?', a: 'None! You can register, receive your credentials, generate QR codes, and simulate customer portals instantly without specifying a credit card.' },
-    { q: 'How do I pay after the trial ends?', a: 'Once the 14-day trial is finished, you will receive a prompt inside your Dashboard to input billing credentials. We support cards, UPI, and bank transfers.' },
+    { q: 'Is there really no payment required for the trial?', a: 'None! You can register, set up your shop, generate QR codes, and simulate customer portals instantly without specifying a credit card.' },
+    { q: 'How do I pay after the trial ends?', a: 'Once the 14-day trial is finished, you will receive a prompt inside your Dashboard to input billing details. We support cards, UPI, and bank transfers.' },
     { q: 'What happens if I need to add more shops?', a: 'Our Starter Plan supports 1 physical shop. For multi-branch operations, you can upgrade to the Professional plan or reach out to our enterprise team.' }
   ];
 

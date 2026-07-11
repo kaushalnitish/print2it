@@ -39,26 +39,16 @@ export const DashboardOverview: React.FC = () => {
       <div className="bg-slate-900 text-white rounded-3xl p-6 md:p-8 relative overflow-hidden flex flex-col md:row justify-between items-start md:items-center gap-6">
         <div className="space-y-1.5 relative z-10 max-w-lg">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] bg-indigo-500 text-white font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
-              Sprint 2 Operational Console
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+              Cloud Connected
             </span>
-            {isSupabaseConfigured ? (
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                Supabase Live
-              </span>
-            ) : (
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-                Local Demo Mode
-              </span>
-            )}
           </div>
           <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
             {currentShop.name}
           </h1>
           <p className="text-slate-350 text-xs font-medium leading-relaxed">
-            Welcome to your unified console! You are running the <span className="text-indigo-300 font-bold">Starter Plan</span>. Customers scan your QR, upload, and appear on this board immediately.
+            Welcome to your unified console! You are running the <span className="text-indigo-300 font-bold">{currentShop.subscription || 'Starter'} Plan</span>. Customers scan your QR, upload, and appear on this board immediately.
           </p>
         </div>
 
@@ -138,9 +128,9 @@ export const DashboardOverview: React.FC = () => {
               <Printer className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <p className="font-bold text-slate-700">The queue is currently empty</p>
+              <p className="font-bold text-slate-700">The print queue is currently empty</p>
               <p className="text-slate-400 text-xs font-semibold max-w-xs mx-auto leading-normal">
-                Scan your counter QR code on your mobile phone and simulate a file upload to watch it drop here live!
+                Share your Customer Portal URL or display the QR code at your counter to receive dynamic print jobs directly.
               </p>
             </div>
           </div>
@@ -180,7 +170,7 @@ export const DashboardOverview: React.FC = () => {
                       <span>•</span>
                       <span>{job.file?.pages} {job.file?.pages === 1 ? 'page' : 'pages'}</span>
                       <span>•</span>
-                      <span className="text-slate-400">{new Date(job.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-slate-400">{job.timestamp || 'Just now'}</span>
                     </div>
                   </div>
                 </div>

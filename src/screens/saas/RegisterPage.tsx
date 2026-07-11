@@ -1,45 +1,62 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Printer, Shield, ArrowRight, User, Building2, Mail, Phone, Lock } from 'lucide-react';
+import { Printer, Shield, ArrowRight, User, Building2, Mail, Phone, Lock, MapPin, Percent } from 'lucide-react';
 import { useSaaS } from '../../context/SaaSContext';
-import { motion } from 'motion/react';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { register, login } = useSaaS();
+  const { register } = useSaaS();
 
   const [ownerName, setOwnerName] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [gst, setGst] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ownerName || !businessName || !email || !phone || !password) {
+    setError('');
+
+    if (!ownerName || !businessName || !email || !phone || !password || !confirmPassword || !address || !city || !state) {
       setError('Please fill in all required fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
-      const generatedShop = await register(
+      const fullAddress = `${address}, ${city}, ${state}${gst ? ` (GSTIN: ${gst})` : ''}`;
+      
+      await register(
         ownerName,
         businessName,
         email,
         phone,
-        address || '100 Main Street, Suite 50, India',
+        fullAddress,
         password
       );
+      
       // Automatically logged in by the register() call, route to dashboard
       navigate('/dashboard');
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Registration failed. Check your network or database parameters.');
+      setError(err.message || 'Registration failed. Please check your internet connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -47,7 +64,7 @@ export const RegisterPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center py-12 px-6 font-sans">
-      <div className="w-full max-w-lg bg-white p-8 md:p-12 rounded-[36px] border border-slate-100 shadow-xl shadow-slate-900/5 space-y-8 relative overflow-hidden">
+      <div className="w-full max-w-2xl bg-white p-8 md:p-12 rounded-[36px] border border-slate-100 shadow-xl shadow-slate-900/5 space-y-8 relative overflow-hidden">
         {/* Visual background gradient accents */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-[40px] pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-slate-100/60 rounded-full blur-[45px] pointer-events-none" />
@@ -63,8 +80,8 @@ export const RegisterPage: React.FC = () => {
             </div>
           </Link>
           <div className="space-y-1.5">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Create your PrintFlow Shop</h1>
-            <p className="text-slate-500 font-medium text-sm">Launch your automatic counter in less than 60 seconds.</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Create Your Print Shop</h1>
+            <p className="text-slate-500 font-medium text-sm">Launch your commercial print queue counter instantly.</p>
           </div>
         </div>
 
@@ -104,7 +121,7 @@ export const RegisterPage: React.FC = () => {
                   required
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="e.g. Express Copy Center"
+                  placeholder="e.g. Elite Print Center"
                   className="w-full h-12 pl-11 pr-4 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-semibold text-slate-800 text-sm"
                 />
               </div>
@@ -123,7 +140,7 @@ export const RegisterPage: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. rahul@expresscopy.com"
+                  placeholder="e.g. rahul@elitecopy.com"
                   className="w-full h-12 pl-11 pr-4 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-semibold text-slate-800 text-sm"
                 />
               </div>
@@ -140,7 +157,7 @@ export const RegisterPage: React.FC = () => {
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="e.g. +91 99887 76655"
+                  placeholder="e.g. +1 (650) 555-0199"
                   className="w-full h-12 pl-11 pr-4 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-semibold text-slate-800 text-sm"
                 />
               </div>
@@ -148,30 +165,97 @@ export const RegisterPage: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Physical Shop Address</label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="e.g. Shop 45, Sector 15-A, Chandigarh, India"
-              className="w-full h-12 px-4 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-semibold text-slate-800 text-sm"
-            />
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Business Address</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <MapPin className="w-4 h-4" />
+              </span>
+              <input
+                type="text"
+                required
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Street address, Suite, Shop number"
+                className="w-full h-12 pl-11 pr-4 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-semibold text-slate-800 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">City</label>
+              <input
+                type="text"
+                required
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="e.g. Palo Alto"
+                className="w-full h-12 px-4 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-semibold text-slate-800 text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">State</label>
+              <input
+                type="text"
+                required
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                placeholder="e.g. California"
+                className="w-full h-12 px-4 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-semibold text-slate-800 text-sm"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Choose Password</label>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">GST (optional)</label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                <Lock className="w-4 h-4" />
+                <Percent className="w-4 h-4" />
               </span>
               <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimum 6 characters"
+                type="text"
+                value={gst}
+                onChange={(e) => setGst(e.target.value)}
+                placeholder="e.g. 07AAAAA1111A1Z1"
                 className="w-full h-12 pl-11 pr-4 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-semibold text-slate-800 text-sm"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Password</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Lock className="w-4 h-4" />
+                </span>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  className="w-full h-12 pl-11 pr-4 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-semibold text-slate-800 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Confirm Password</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Lock className="w-4 h-4" />
+                </span>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat password"
+                  className="w-full h-12 pl-11 pr-4 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-semibold text-slate-800 text-sm"
+                />
+              </div>
             </div>
           </div>
 
@@ -180,21 +264,8 @@ export const RegisterPage: React.FC = () => {
             disabled={loading}
             className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 group hover:scale-[1.01] disabled:opacity-75 disabled:pointer-events-none"
           >
-            <span>{loading ? 'Initializing Database...' : 'Register & Initialize Shop'}</span>
+            <span>{loading ? 'Initializing Shop...' : 'Register & Initialize Shop'}</span>
             {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
-          </button>
-
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => {
-              login('demo@printflow.cloud', 'demo');
-              navigate('/dashboard');
-            }}
-            className="w-full h-14 border-2 border-indigo-200 hover:border-indigo-300 text-indigo-700 font-extrabold rounded-2xl transition-all flex items-center justify-center gap-2 hover:bg-indigo-50/30 disabled:opacity-75 disabled:pointer-events-none"
-          >
-            <span>Enter Demo Dashboard (Skip Registration)</span>
-            <ArrowRight className="w-5 h-5 text-indigo-600" />
           </button>
         </form>
 

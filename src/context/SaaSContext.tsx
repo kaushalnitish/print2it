@@ -49,57 +49,27 @@ interface SaaSContextType {
 
 const SaaSContext = createContext<SaaSContextType | undefined>(undefined);
 
-// Automatic Demo Shop generator for fallback
+// Automatic blank shop generator for fallback
 export const getDemoShop = (): Shop => {
-  const host = window.location.origin;
-  const pathPrefix = window.location.pathname === '/' ? '' : window.location.pathname;
-  const portalUrl = `${host}${pathPrefix}#/s/demo-print-shop`;
   return {
-    id: 'PF-00001',
-    shopId: 'PF-00001',
-    slug: 'demo-print-shop',
-    shopSlug: 'demo-print-shop',
-    name: 'Demo Print Shop',
-    shopName: 'Demo Print Shop',
-    ownerName: 'Demo Owner',
-    email: 'demo@printflow.cloud',
-    phone: '+91 98765 43210',
-    address: '101 Innovation Way, Tech Park',
-    subscription: 'Trial Active',
-    customerPortalUrl: portalUrl,
-    pairingKey: 'PF-DEMO-2026',
-    qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(portalUrl)}`,
+    id: '',
+    shopId: '',
+    slug: '',
+    shopSlug: '',
+    name: 'Print Shop',
+    shopName: 'Print Shop',
+    ownerName: 'Owner',
+    email: '',
+    phone: '',
+    address: '',
+    subscription: 'Starter',
+    customerPortalUrl: '',
+    pairingKey: '',
+    qrCode: '',
     printerStatus: 'Not Connected',
     agentStatus: 'Not Installed',
     createdDate: new Date().toISOString().split('T')[0],
-    printJobs: [
-      {
-        id: 'job-demo-1',
-        token: 'PF-1001',
-        fileName: 'Project_Proposal_Draft.pdf',
-        fileSize: '1.2 MB',
-        pages: 5,
-        copies: 2,
-        colorMode: 'bw',
-        paperSize: 'a4',
-        sideMode: 'double',
-        status: 'waiting',
-        timestamp: '5 mins ago'
-      },
-      {
-        id: 'job-demo-2',
-        token: 'PF-1002',
-        fileName: 'Color_Flyer_Final.png',
-        fileSize: '5.4 MB',
-        pages: 1,
-        copies: 10,
-        colorMode: 'color',
-        paperSize: 'a4',
-        sideMode: 'single',
-        status: 'printing',
-        timestamp: '2 mins ago'
-      }
-    ],
+    printJobs: [],
     get jobs() {
       return this.printJobs;
     }
@@ -110,7 +80,7 @@ export const enrichShop = (shop: any): Shop => {
   if (!shop) return shop;
   const enriched = {
     ...shop,
-    id: shop.id, // Strictly preserve database UUID, never assign shop.shopId as id
+    id: shop.id, 
     shopId: shop.shopId || shop.id,
     slug: shop.slug || shop.shopSlug,
     shopSlug: shop.shopSlug || shop.slug,
@@ -131,72 +101,8 @@ export const enrichShop = (shop: any): Shop => {
   return enriched as Shop;
 };
 
-// Initial mock pre-seeded shops
-const initialShops: Shop[] = [
-  {
-    id: 'SH-8801',
-    shopId: 'SH-8801',
-    shopSlug: 'quickprint',
-    shopName: 'QuickPrint Center',
-    ownerName: 'Amit Sharma',
-    email: 'amit@quickprint.com',
-    phone: '+91 98765 43210',
-    address: 'Shop 12, Sector 17-C, Chandigarh, India',
-    subscription: 'Starter',
-    customerPortalUrl: '', 
-    pairingKey: 'PRNT-FLW-QA82-X901',
-    qrCode: '', 
-    printerStatus: 'online',
-    agentStatus: 'connected',
-    createdDate: '2026-05-15',
-    printJobs: [
-      {
-        id: 'job-1',
-        token: 'PF-4102',
-        fileName: 'Resume_Revised_2026.pdf',
-        fileSize: '320 KB',
-        pages: 2,
-        copies: 1,
-        colorMode: 'bw',
-        paperSize: 'a4',
-        sideMode: 'single',
-        status: 'ready',
-        timestamp: '10 mins ago'
-      },
-      {
-        id: 'job-2',
-        token: 'PF-1920',
-        fileName: 'Business_Card_Vector.png',
-        fileSize: '4.2 MB',
-        pages: 1,
-        copies: 5,
-        colorMode: 'color',
-        paperSize: 'a4',
-        sideMode: 'single',
-        status: 'printing',
-        timestamp: '3 mins ago'
-      }
-    ]
-  },
-  {
-    id: 'SH-2903',
-    shopId: 'SH-2903',
-    shopSlug: 'chamba-copy-center',
-    shopName: 'Chamba Copy Center',
-    ownerName: 'Vijay Kumar',
-    email: 'vijay@chambacopy.com',
-    phone: '+91 98123 45678',
-    address: 'Near Old Bus Stand, Chamba, Himachal Pradesh, India',
-    subscription: 'Starter',
-    customerPortalUrl: '',
-    pairingKey: 'PRNT-FLW-CH33-Z774',
-    qrCode: '',
-    printerStatus: 'online',
-    agentStatus: 'connected',
-    createdDate: '2026-06-01',
-    printJobs: []
-  }
-];
+// No pre-seeded shops - strictly real Supabase integration
+const initialShops: Shop[] = [];
 
 export function SaaSProvider({ children }: { children: React.ReactNode }) {
   const [supabaseLoading, setSupabaseLoading] = useState(isSupabaseConfigured);

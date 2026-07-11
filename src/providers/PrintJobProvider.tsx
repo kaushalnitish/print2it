@@ -17,36 +17,9 @@ export const PrintJobProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [jobs, setJobs] = useState<PrintJob[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Load simulated jobs on startup
+  // Start with clean empty state
   useEffect(() => {
-    setJobs([
-      {
-        id: 'job-demo-1',
-        token: 'PF-1001',
-        fileName: 'Project_Proposal_Draft.pdf',
-        fileSize: '1.2 MB',
-        pages: 5,
-        copies: 2,
-        colorMode: 'bw',
-        paperSize: 'a4',
-        sideMode: 'double',
-        status: 'submitted',
-        timestamp: '5 mins ago'
-      },
-      {
-        id: 'job-demo-2',
-        token: 'PF-1002',
-        fileName: 'Color_Flyer_Final.png',
-        fileSize: '5.4 MB',
-        pages: 1,
-        copies: 10,
-        colorMode: 'color',
-        paperSize: 'a4',
-        sideMode: 'single',
-        status: 'printing',
-        timestamp: '2 mins ago'
-      }
-    ]);
+    setJobs([]);
   }, []);
 
   const createJob = async (shopUuid: string, newJob: Omit<PrintJob, 'id' | 'timestamp'>): Promise<PrintJob> => {
