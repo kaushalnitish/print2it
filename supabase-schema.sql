@@ -1,18 +1,24 @@
 -- =====================================================================
--- PRINTFLOW SUPABASE DATABASE SCHEMA & SECURITY POLICIES (MVP)
+-- PRINTFLOW SUPABASE DATABASE SCHEMA, MIGRATIONS & SECURITY POLICIES
 -- =====================================================================
--- This file provides the complete production database foundation for PrintFlow.
--- Copy-paste this code into the SQL Editor in your Supabase Dashboard.
--- This version is simplified for an MVP without Supabase Auth or Profiles.
+-- This file provides a complete, production-grade database foundation for PrintFlow.
+-- 
+-- DEPLOYMENT & MIGRATION DIRECTIVES:
+-- 1. Execute this script inside the SQL Editor of your Supabase Dashboard.
+-- 2. It supports BOTH fresh installations and migrations of existing databases:
+--    - Uses CREATE TABLE IF NOT EXISTS to prevent overwriting existing data.
+--    - Uses ALTER TABLE ... ADD COLUMN IF NOT EXISTS to dynamically append missing 
+--      columns (such as file_url) to pre-existing tables.
+--    - Uses conditional block statements to add keys, indexes, and constraints safely.
 -- =====================================================================
 
 -- Enable UUID extension if not enabled
 create extension if not exists "uuid-ossp";
 
 -- ---------------------------------------------------------------------
--- 1. SHOPS TABLE
+-- 1. SHOPS TABLE SETUP & INLINE ALIGNMENT
 -- ---------------------------------------------------------------------
-create table public.shops (
+create table if not exists public.shops (
     id uuid default gen_random_uuid() primary key,
     shop_id text unique not null, -- External ID representation (e.g., 'SH-1234')
     shop_slug text unique not null,
@@ -29,10 +35,46 @@ create table public.shops (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Ensure all shops columns exist for incremental migration
+alter table public.shops add column if not exists shop_id text;
+alter table public.shops add column if not exists shop_slug text;
+alter table public.shops add column if not exists shop_name text;
+alter table public.shops add column if not exists owner_id text default 'mvp-user-id';
+alter table public.shops add column if not exists owner_name text default 'Valued Owner';
+alter table public.shops add column if not exists owner_email text default 'demo@printflow.cloud';
+alter table public.shops add column if not exists phone text;
+alter table public.shops add column if not exists address text;
+alter table public.shops add column if not exists subscription text default 'Starter';
+alter table public.shops add column if not exists pairing_key text;
+alter table public.shops add column if not exists printer_status text default 'Not Connected';
+alter table public.shops add column if not exists agent_status text default 'Not Installed';
+alter table public.shops add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+-- Ensure unique constraints exist for shops
+do $$
+begin
+    if not exists (
+        select 1 from pg_constraint where conname = 'shops_shop_id_key'
+    ) then
+        alter table public.shops add constraint shops_shop_id_key unique (shop_id);
+    end if;
+
+    if not exists (
+        select 1 from pg_constraint where conname = 'shops_shop_slug_key'
+    ) then
+        alter table public.shops add constraint shops_shop_slug_key unique (shop_slug);
+    end if;
+end $$;
+
 -- Enable Row Level Security (RLS) on shops
 alter table public.shops enable row level security;
 
--- Create policies for shops
+-- Drop and recreate shop access policies
+drop policy if exists "Anyone can view shop profiles" on public.shops;
+drop policy if exists "Anyone can insert shops in MVP" on public.shops;
+drop policy if exists "Anyone can update shops in MVP" on public.shops;
+drop policy if exists "Anyone can delete shops in MVP" on public.shops;
+
 create policy "Anyone can view shop profiles"
     on public.shops for select
     using (true); -- Required for walk-in customers visiting the portal
@@ -49,10 +91,11 @@ create policy "Anyone can delete shops in MVP"
     on public.shops for delete
     using (true);
 
+
 -- ---------------------------------------------------------------------
--- 2. PRINT JOBS TABLE
+-- 2. PRINT JOBS TABLE SETUP & FULL SCHEMA ALIGNMENT
 -- ---------------------------------------------------------------------
-create table public.print_jobs (
+create table if not exists public.print_jobs (
     id uuid default gen_random_uuid() primary key,
     job_id text unique not null, -- External ID representation (e.g., 'job-demo-1')
     token text not null, -- Client-facing pick-up token (e.g., 'PF-1001')
@@ -69,10 +112,47 @@ create table public.print_jobs (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Ensure all print_jobs columns exist for incremental migration
+alter table public.print_jobs add column if not exists job_id text;
+alter table public.print_jobs add column if not exists token text;
+alter table public.print_jobs add column if not exists file_name text;
+alter table public.print_jobs add column if not exists file_size text;
+alter table public.print_jobs add column if not exists pages integer;
+alter table public.print_jobs add column if not exists copies integer;
+alter table public.print_jobs add column if not exists color_mode text;
+alter table public.print_jobs add column if not exists paper_size text;
+alter table public.print_jobs add column if not exists side_mode text;
+alter table public.print_jobs add column if not exists status text default 'submitted';
+alter table public.print_jobs add column if not exists file_url text; -- Critical column requested by user
+alter table public.print_jobs add column if not exists shop_id uuid;
+alter table public.print_jobs add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+-- Ensure constraints and foreign keys exist for print_jobs
+do $$
+begin
+    if not exists (
+        select 1 from pg_constraint where conname = 'print_jobs_job_id_key'
+    ) then
+        alter table public.print_jobs add constraint print_jobs_job_id_key unique (job_id);
+    end if;
+
+    if not exists (
+        select 1 from pg_constraint where conname = 'print_jobs_shop_id_fkey'
+    ) then
+        alter table public.print_jobs add constraint print_jobs_shop_id_fkey 
+            foreign key (shop_id) references public.shops(id) on delete cascade;
+    end if;
+end $$;
+
 -- Enable RLS on print_jobs
 alter table public.print_jobs enable row level security;
 
--- Create policies for print_jobs
+-- Drop and recreate print_jobs access policies
+drop policy if exists "Anyone can insert new print jobs" on public.print_jobs;
+drop policy if exists "Anyone can view print jobs" on public.print_jobs;
+drop policy if exists "Anyone can update print jobs" on public.print_jobs;
+drop policy if exists "Anyone can delete print jobs" on public.print_jobs;
+
 create policy "Anyone can insert new print jobs"
     on public.print_jobs for insert
     with check (true); -- Required so walk-in customer portal can submit files
@@ -89,11 +169,12 @@ create policy "Anyone can delete print jobs"
     on public.print_jobs for delete
     using (true);
 
+
 -- ---------------------------------------------------------------------
--- 3. PRINT AGENTS TABLE
+-- 3. PRINT AGENTS TABLE SETUP & INLINE ALIGNMENT
 -- ---------------------------------------------------------------------
 -- Tracks physical print client machines running locally in shop locations.
-create table public.print_agents (
+create table if not exists public.print_agents (
     id uuid default gen_random_uuid() primary key,
     shop_id uuid references public.shops(id) on delete cascade unique not null,
     agent_version text default '1.0.0' not null,
@@ -104,10 +185,38 @@ create table public.print_agents (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Ensure all print_agents columns exist for incremental migration
+alter table public.print_agents add column if not exists agent_version text default '1.0.0';
+alter table public.print_agents add column if not exists os_platform text;
+alter table public.print_agents add column if not exists status text default 'Not Installed';
+alter table public.print_agents add column if not exists last_connected_at timestamp with time zone default timezone('utc'::text, now());
+alter table public.print_agents add column if not exists printer_name text;
+alter table public.print_agents add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+-- Ensure unique foreign key constraints exist for print_agents
+do $$
+begin
+    if not exists (
+        select 1 from pg_constraint where conname = 'print_agents_shop_id_key'
+    ) then
+        alter table public.print_agents add constraint print_agents_shop_id_key unique (shop_id);
+    end if;
+
+    if not exists (
+        select 1 from pg_constraint where conname = 'print_agents_shop_id_fkey'
+    ) then
+        alter table public.print_agents add constraint print_agents_shop_id_fkey 
+            foreign key (shop_id) references public.shops(id) on delete cascade;
+    end if;
+end $$;
+
 -- Enable RLS on print_agents
 alter table public.print_agents enable row level security;
 
--- Create policies for print_agents
+-- Drop and recreate print_agents access policies
+drop policy if exists "Anyone can view print agents" on public.print_agents;
+drop policy if exists "Anyone can update/insert print agents" on public.print_agents;
+
 create policy "Anyone can view print agents"
     on public.print_agents for select
     using (true);
@@ -117,11 +226,12 @@ create policy "Anyone can update/insert print agents"
     using (true)
     with check (true);
 
+
 -- ---------------------------------------------------------------------
--- 4. SUBSCRIPTIONS TABLE
+-- 4. SUBSCRIPTIONS TABLE SETUP & INLINE ALIGNMENT
 -- ---------------------------------------------------------------------
 -- Tracks plan tiers and daily quotas for each shop.
-create table public.subscriptions (
+create table if not exists public.subscriptions (
     id uuid default gen_random_uuid() primary key,
     shop_id uuid references public.shops(id) on delete cascade unique not null,
     plan text default 'Starter' not null, -- 'Starter', 'Professional', 'Enterprise', 'Trial Active'
@@ -132,10 +242,38 @@ create table public.subscriptions (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Ensure all subscriptions columns exist for incremental migration
+alter table public.subscriptions add column if not exists plan text default 'Starter';
+alter table public.subscriptions add column if not exists status text default 'active';
+alter table public.subscriptions add column if not exists current_period_end timestamp with time zone;
+alter table public.subscriptions add column if not exists max_daily_jobs integer default 100;
+alter table public.subscriptions add column if not exists current_daily_jobs integer default 0;
+alter table public.subscriptions add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+-- Ensure constraints and foreign keys exist for subscriptions
+do $$
+begin
+    if not exists (
+        select 1 from pg_constraint where conname = 'subscriptions_shop_id_key'
+    ) then
+        alter table public.subscriptions add constraint subscriptions_shop_id_key unique (shop_id);
+    end if;
+
+    if not exists (
+        select 1 from pg_constraint where conname = 'subscriptions_shop_id_fkey'
+    ) then
+        alter table public.subscriptions add constraint subscriptions_shop_id_fkey 
+            foreign key (shop_id) references public.shops(id) on delete cascade;
+    end if;
+end $$;
+
 -- Enable RLS on subscriptions
 alter table public.subscriptions enable row level security;
 
--- Create policies for subscriptions
+-- Drop and recreate subscriptions access policies
+drop policy if exists "Anyone can view subscriptions" on public.subscriptions;
+drop policy if exists "Anyone can update subscriptions" on public.subscriptions;
+
 create policy "Anyone can view subscriptions"
     on public.subscriptions for select
     using (true);
@@ -144,16 +282,18 @@ create policy "Anyone can update subscriptions"
     on public.subscriptions for update
     using (true);
 
+
 -- ---------------------------------------------------------------------
 -- 5. USEFUL INDEXES FOR QUERY OPTIMIZATION
 -- ---------------------------------------------------------------------
-create index idx_shops_slug on public.shops(shop_slug);
-create index idx_shops_owner on public.shops(owner_id);
-create index idx_print_jobs_shop on public.print_jobs(shop_id);
-create index idx_print_jobs_token on public.print_jobs(token);
-create index idx_print_jobs_status on public.print_jobs(status);
-create index idx_print_agents_shop on public.print_agents(shop_id);
-create index idx_subscriptions_shop on public.subscriptions(shop_id);
+create index if not exists idx_shops_slug on public.shops(shop_slug);
+create index if not exists idx_shops_owner on public.shops(owner_id);
+create index if not exists idx_print_jobs_shop on public.print_jobs(shop_id);
+create index if not exists idx_print_jobs_token on public.print_jobs(token);
+create index if not exists idx_print_jobs_status on public.print_jobs(status);
+create index if not exists idx_print_agents_shop on public.print_agents(shop_id);
+create index if not exists idx_subscriptions_shop on public.subscriptions(shop_id);
+
 
 -- ---------------------------------------------------------------------
 -- 6. STORAGE SETUP FOR PRINTFLOW (print-files bucket)
