@@ -360,3 +360,57 @@ export const supabaseDb = {
     if (error) throw error;
   }
 };
+
+// ---------------------------------------------------------------------
+// 6. STORAGE COMPONENT SERVICES
+// ---------------------------------------------------------------------
+export const supabaseStorage = {
+  async ensureBucketExists(): Promise<void> {
+    if (!isSupabaseConfigured || !supabase) return;
+    
+    try {
+      // 1. List existing buckets
+      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+      
+      if (listError) {
+        console.warn('⚠️ [Storage Diagnostic] Unable to list storage buckets:', listError.message);
+        // Fallback: try creating it anyway if listing fails (could be restriction on listing)
+      }
+      
+      const bucketExists = buckets && buckets.some(b => b.id === 'print-files');
+      
+      if (!bucketExists) {
+        console.log('ℹ️ [Storage Setup] "print-files" bucket not found. Initiating dynamic auto-creation...');
+        
+        const { error: createError } = await supabase.storage.createBucket('print-files', {
+          public: true,
+          fileSizeLimit: 52428800, // 50MB limit
+          allowedMimeTypes: [
+            'application/pdf', 
+            'image/jpeg', 
+            'image/jpg',
+            'image/png', 
+            'image/webp',
+            'application/msword', 
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          ]
+        });
+        
+        if (createError) {
+          console.warn(
+            '⚠️ [Storage Setup] Programmatic auto-creation of bucket "print-files" returned an error: ' +
+            createError.message + '\nThis is expected if your API key has restricted administrative roles. ' +
+            'Please ensure you run the SQL migration inside /supabase-schema.sql inside your Supabase dashboard SQL editor ' +
+            'to guarantee the bucket and its RLS policies are fully provisioned.'
+          );
+        } else {
+          console.log('%c✅ [Storage Setup] "print-files" bucket successfully created and configured as public.', 'color: #10b981; font-weight: bold;');
+        }
+      } else {
+        console.log('✅ [Storage Diagnostic] "print-files" storage bucket exists and is ready.');
+      }
+    } catch (err: any) {
+      console.warn('⚠️ [Storage Setup] Critical exception during bucket verification:', err?.message || err);
+    }
+  }
+};

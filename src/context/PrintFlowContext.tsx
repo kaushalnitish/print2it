@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { PrintFile, PrintSettings, OrderState, ShopInfo, UploadStep, TrackingStatus, JobStatus, PrintJob } from '../types';
 import { useSaaS } from './SaaSContext';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { supabaseDb } from '../lib/supabaseService';
+import { supabaseDb, supabaseStorage } from '../lib/supabaseService';
 
 interface PrintFlowContextType {
   shopInfo: ShopInfo;
@@ -130,6 +130,33 @@ export function PrintFlowProvider({ children }: { children: React.ReactNode }) {
     }, 100);
 
     try {
+      // 1. Pre-retrieve the shop tenant and validate it
+      const match = window.location.hash.match(/\/s\/([^/]+)/);
+      const slug = match ? match[1] : 'demo-print-shop';
+      const tenant = getShopBySlug(slug);
+
+      if (!tenant) {
+        throw new Error('Target print shop branch not found.');
+      }
+
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (isSupabaseConfigured && (!tenant.id || !uuidRegex.test(tenant.id))) {
+        throw new Error('This print shop branch is not fully registered and cannot receive print jobs. Please contact support.');
+      }
+
+      // 2. Generate a unique Job ID (UUID) for both database primary key and storage folder nesting
+      const generateUUID = () => {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+          return crypto.randomUUID();
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          const v = c === 'x' ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+      };
+      
+      const jobUuid = generateUUID();
       let fileUrl = '';
       const rawFile = file.rawFile;
 
@@ -138,15 +165,17 @@ export function PrintFlowProvider({ children }: { children: React.ReactNode }) {
           throw new Error('No raw file associated with this print job.');
         }
 
-        // Upload the file to Supabase Storage bucket 'print-files'
+        // Ensure the bucket exists dynamically before uploading (failsafe layer)
+        await supabaseStorage.ensureBucketExists();
+
+        // Upload the file to Supabase Storage bucket 'print-files' with structured layout: {shop_id}/{job_id}/original.{ext}
         const fileExt = rawFile.name.split('.').pop()?.toLowerCase() || '';
-        const uniqueId = Math.floor(100000 + Math.random() * 900000);
-        const fileNameToUpload = `${Date.now()}-${uniqueId}.${fileExt}`;
+        const filePathToUpload = `${tenant.id}/${jobUuid}/original.${fileExt}`;
 
         // Attempting upload
         const { data: uploadData, error: uploadErr } = await supabase.storage
           .from('print-files')
-          .upload(fileNameToUpload, rawFile, {
+          .upload(filePathToUpload, rawFile, {
             cacheControl: '3600',
             upsert: true
           });
@@ -159,26 +188,12 @@ export function PrintFlowProvider({ children }: { children: React.ReactNode }) {
         // Get public URL
         const { data: urlData } = supabase.storage
           .from('print-files')
-          .getPublicUrl(fileNameToUpload);
+          .getPublicUrl(filePathToUpload);
 
         fileUrl = urlData.publicUrl;
       } else {
         // Safe cloud connection offline message
         throw new Error("Our cloud connection is temporarily offline. Please check your internet connection and try again.");
-      }
-
-      // Create row inside print_jobs
-      const match = window.location.hash.match(/\/s\/([^/]+)/);
-      const slug = match ? match[1] : 'demo-print-shop';
-      const tenant = getShopBySlug(slug);
-
-      if (!tenant) {
-        throw new Error('Target print shop branch not found.');
-      }
-
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (isSupabaseConfigured && (!tenant.id || !uuidRegex.test(tenant.id))) {
-        throw new Error('This print shop branch is not fully registered and cannot receive print jobs. Please contact support.');
       }
 
       const randomToken = `PF-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -216,6 +231,7 @@ export function PrintFlowProvider({ children }: { children: React.ReactNode }) {
       };
 
       const jobPayload = {
+        id: jobUuid,
         token: randomToken,
         fileName: file.name,
         fileSize: formatFileSize(file.size),
@@ -234,7 +250,7 @@ export function PrintFlowProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Simulated local fallback
         const offlineJob: PrintJob = {
-          id: `job-${Math.floor(1000 + Math.random() * 9000)}`,
+          id: jobUuid,
           ...jobPayload,
           timestamp: 'Just now',
           createdAt: new Date().toISOString()

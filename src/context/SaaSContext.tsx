@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { supabaseAuth, supabaseDb, mapDbShopToShop } from '../lib/supabaseService';
+import { supabaseAuth, supabaseDb, mapDbShopToShop, supabaseStorage } from '../lib/supabaseService';
 import { PrintJob, JobStatus } from '../types';
 
 export interface Shop {
@@ -117,6 +117,9 @@ export function SaaSProvider({ children }: { children: React.ReactNode }) {
     const initialize = async () => {
       if (isSupabaseConfigured) {
         try {
+          // Dynamic Storage Bucket verification
+          await supabaseStorage.ensureBucketExists();
+          
           const user = await supabaseAuth.getCurrentUser();
           if (user) {
             setActiveOwner({ name: user.name, email: user.email, phone: user.phone });

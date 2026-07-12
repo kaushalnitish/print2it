@@ -154,3 +154,72 @@ create index idx_print_jobs_token on public.print_jobs(token);
 create index idx_print_jobs_status on public.print_jobs(status);
 create index idx_print_agents_shop on public.print_agents(shop_id);
 create index idx_subscriptions_shop on public.subscriptions(shop_id);
+
+-- ---------------------------------------------------------------------
+-- 6. STORAGE SETUP FOR PRINTFLOW (print-files bucket)
+-- ---------------------------------------------------------------------
+
+-- Create storage bucket if not exists
+insert into storage.buckets (id, name, public)
+values ('print-files', 'print-files', true)
+on conflict (id) do nothing;
+
+-- Enable Row Level Security on storage objects if not already enabled
+alter table storage.objects enable row level security;
+
+-- Drop existing storage policies if they exist (allows safe, clean re-runs)
+drop policy if exists "Allow public uploads to print-files" on storage.objects;
+drop policy if exists "Allow public read access to print-files" on storage.objects;
+drop policy if exists "Owners can manage files belonging to their own shop" on storage.objects;
+drop policy if exists "Allow customer to upload to their shop folder" on storage.objects;
+drop policy if exists "Shop owners can read their shop files" on storage.objects;
+drop policy if exists "Shop owners can manage their shop files" on storage.objects;
+
+-- 1. Create insert policy for walk-in customers and clients
+-- Allows anyone to upload new files, but ONLY if they are uploading to their specific shop folder (matching a valid shop_id).
+create policy "Allow customer to upload to their shop folder"
+on storage.objects for insert
+to public
+with check (
+    bucket_id = 'print-files'
+    and exists (
+        select 1 from public.shops
+        where id::text = split_part(name, '/', 1)
+    )
+);
+
+-- 2. Create select policy for shop owners to access files belonging to their own shop
+-- Shop owners are restricted to reading only files within their shop's dedicated folder.
+create policy "Shop owners can read their shop files"
+on storage.objects for select
+to public
+using (
+    bucket_id = 'print-files'
+    and exists (
+        select 1 from public.shops
+        where id::text = split_part(name, '/', 1)
+        and owner_id = auth.uid()::text
+    )
+);
+
+-- 3. Create full manage policy (insert, update, delete) for shop owners
+-- Shop owners are restricted to modifying or deleting files within their shop's dedicated folder.
+create policy "Shop owners can manage their shop files"
+on storage.objects for all
+to public
+using (
+    bucket_id = 'print-files'
+    and exists (
+        select 1 from public.shops
+        where id::text = split_part(name, '/', 1)
+        and owner_id = auth.uid()::text
+    )
+)
+with check (
+    bucket_id = 'print-files'
+    and exists (
+        select 1 from public.shops
+        where id::text = split_part(name, '/', 1)
+        and owner_id = auth.uid()::text
+    )
+);
