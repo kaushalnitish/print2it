@@ -478,7 +478,7 @@ export function SaaSProvider({ children }: { children: React.ReactNode }) {
       }
       
       if (!matchedShop.id || !uuidRegex.test(matchedShop.id)) {
-        throw new Error('Database operation aborted: The target print shop does not have a valid database UUID. Check configuration.');
+        throw new Error('This print shop branch is not fully registered. Please contact support.');
       }
 
       try {

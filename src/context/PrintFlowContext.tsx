@@ -163,8 +163,8 @@ export function PrintFlowProvider({ children }: { children: React.ReactNode }) {
 
         fileUrl = urlData.publicUrl;
       } else {
-        // Supabase is offline / not configured
-        throw new Error("Supabase is offline or not configured. Please define your connection keys and retry.");
+        // Safe cloud connection offline message
+        throw new Error("Our cloud connection is temporarily offline. Please check your internet connection and try again.");
       }
 
       // Create row inside print_jobs
@@ -178,7 +178,7 @@ export function PrintFlowProvider({ children }: { children: React.ReactNode }) {
 
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (isSupabaseConfigured && (!tenant.id || !uuidRegex.test(tenant.id))) {
-        throw new Error('This print shop does not have a valid database UUID and cannot receive remote print jobs. Please contact support.');
+        throw new Error('This print shop branch is not fully registered and cannot receive print jobs. Please contact support.');
       }
 
       const randomToken = `PF-${Math.floor(1000 + Math.random() * 9000)}`;
